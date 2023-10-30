@@ -1,3 +1,4 @@
+# Run with --ask-vault-pass
 ---
 - name: Create VM's & install Apache
   hosts: "localhost"
@@ -5,17 +6,17 @@
   gather_facts: no
 
   tasks:
-    - name: Include encrypted password file
+    - name: Include encrypted classified file
       include_vars:
-        file: vcenter_password.yml
-        name: vcenter_password_vars
+        file: classified.yml
+        name: classified_vars
       no_log: true
 
     - name: Create CDB-AUTOVM01
       vmware_guest:
         hostname: "vcenter.netlab.fhict.nl"
         username: "i514591@fhict.nl"
-        password: "{{ vcenter_password_vars.vcenter_password }}"
+        password: "{{ classified_vars.vcenter_password }}"
         validate_certs: False
         name: "CDB-AUTOVM01"
         template: "CDB-UbuntuLinux22.04v2"
@@ -30,7 +31,7 @@
       vmware_guest: 
         hostname: "vcenter.netlab.fhict.nl"
         username: "i514591@fhict.nl"
-        password: "{{ vcenter_password_vars.vcenter_password }}"
+        password: "{{ classified_vars.vcenter_password }}"
         name: "CDB-AUTOVM01"
       register: vm_info_01
 
@@ -47,7 +48,7 @@
       vmware_guest:
         hostname: "vcenter.netlab.fhict.nl"
         username: "i514591@fhict.nl"
-        password: "{{ vcenter_password_vars.vcenter_password }}"
+        password: "{{ classified_vars.vcenter_password }}"
         validate_certs: False
         name: "CDB-AUTOVM02"
         template: "CDB-UbuntuLinux22.04v2"
@@ -62,7 +63,7 @@
       vmware_guest: 
         hostname: "vcenter.netlab.fhict.nl"
         username: "i514591@fhict.nl"
-        password: "{{ vcenter_password_vars.vcenter_password }}"
+        password: "{{ classified_vars.vcenter_password }}"
         name: "CDB-AUTOVM02"
       register: vm_info_02
 
@@ -85,10 +86,10 @@
       command: ssh-keygen -t 'ed25519' -f '~/.ssh/ansible'
 
     - name: Copy SSH key to the newly created VM 01
-      command: sshpass -p 'student' ssh-copy-id -i '~/.ssh/ansible' -o StrictHostKeyChecking=no student@"{{ vm_info_01['instance']['hw_eth0']['ipaddresses'][0] }}"
+      command: sshpass -p "{{ classified_vars.ssh_password }}" ssh-copy-id -i '~/.ssh/ansible' -o StrictHostKeyChecking=no student@"{{ vm_info_01['instance']['hw_eth0']['ipaddresses'][0] }}"
 
     - name: Copy SSH key to the newly created VM 02
-      command: sshpass -p 'student' ssh-copy-id -i '~/.ssh/ansible' -o StrictHostKeyChecking=no student@"{{ vm_info_02['instance']['hw_eth0']['ipaddresses'][0] }}"
+      command: sshpass -p "{{ classified_vars.ssh_password }}" ssh-copy-id -i '~/.ssh/ansible' -o StrictHostKeyChecking=no student@"{{ vm_info_02['instance']['hw_eth0']['ipaddresses'][0] }}"
 
 - hosts: "VMs"
   become: True
