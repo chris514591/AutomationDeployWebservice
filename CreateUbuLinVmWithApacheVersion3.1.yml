@@ -1,0 +1,109 @@
+---
+- name: Create VM's & install Apache
+  hosts: "localhost"
+  connection: "local"
+  gather_facts: no
+
+  tasks:
+    - name: Include encrypted password file
+      include_vars:
+        file: vcenter_password.yml
+        name: vcenter_password_vars
+      no_log: true
+
+    - name: Create CDB-AUTOVM01
+      vmware_guest:
+        hostname: "vcenter.netlab.fhict.nl"
+        username: "i514591@fhict.nl"
+        password: "{{ vcenter_password_vars.vcenter_password }}"
+        validate_certs: False
+        name: "CDB-AUTOVM01"
+        template: "CDB-UbuntuLinux22.04v2"
+        datacenter: "Netlab-DC"
+        datastore: "NIM01-I3-DB"
+        resource_pool: "i514591"
+        folder: "_Courses/i3-DB01/i514591"
+        state: "poweredon"
+        wait_for_ip_address: yes
+
+    - name: "Get IP from created VM 01"
+      vmware_guest: 
+        hostname: "vcenter.netlab.fhict.nl"
+        username: "i514591@fhict.nl"
+        password: "{{ vcenter_password_vars.vcenter_password }}"
+        name: "CDB-AUTOVM01"
+      register: vm_info_01
+
+    - name: "Show IP of created VM 01"
+      debug: 
+        msg: "{{ vm_info_01['instance']['hw_eth0']['ipaddresses'][0] }}"
+
+    - name: "Add the created VM 01 to inventory"
+      add_host:
+        hostname: "{{ vm_info_01['instance']['hw_eth0']['ipaddresses'][0] }}"
+        groups: "VMs"
+
+    - name: Create CDB-AUTOVM02
+      vmware_guest:
+        hostname: "vcenter.netlab.fhict.nl"
+        username: "i514591@fhict.nl"
+        password: "{{ vcenter_password_vars.vcenter_password }}"
+        validate_certs: False
+        name: "CDB-AUTOVM02"
+        template: "CDB-UbuntuLinux22.04v2"
+        datacenter: "Netlab-DC"
+        datastore: "NIM01-I3-DB"
+        resource_pool: "i514591"
+        folder: "_Courses/i3-DB01/i514591"
+        state: "poweredon"
+        wait_for_ip_address: yes
+
+    - name: "Get IP from created VM 02"
+      vmware_guest: 
+        hostname: "vcenter.netlab.fhict.nl"
+        username: "i514591@fhict.nl"
+        password: "{{ vcenter_password_vars.vcenter_password }}"
+        name: "CDB-AUTOVM02"
+      register: vm_info_02
+
+    - name: "Show IP of created VM 02"
+      debug: 
+        msg: "{{ vm_info_02['instance']['hw_eth0']['ipaddresses'][0] }}"
+
+    - name: "Add the created VM 02 to inventory"
+      add_host:
+        hostname: "{{ vm_info_02['instance']['hw_eth0']['ipaddresses'][0] }}"
+        groups: "VMs"
+
+    - name: Check if SSH key for Ansible already exists
+      stat:
+        path: "~/.ssh/ansible"
+      register: key_check
+
+    - name: Create a new SSH key for Ansible if it doesn't exist
+      when: not key_check.stat.exists
+      command: ssh-keygen -t 'ed25519' -f '~/.ssh/ansible'
+
+    - name: Copy SSH key to the newly created VM 01
+      command: sshpass -p 'student' ssh-copy-id -i '~/.ssh/ansible' -o StrictHostKeyChecking=no student@"{{ vm_info_01['instance']['hw_eth0']['ipaddresses'][0] }}"
+
+    - name: Copy SSH key to the newly created VM 02
+      command: sshpass -p 'student' ssh-copy-id -i '~/.ssh/ansible' -o StrictHostKeyChecking=no student@"{{ vm_info_02['instance']['hw_eth0']['ipaddresses'][0] }}"
+
+- hosts: "VMs"
+  become: True
+
+  tasks:
+    - name: "Install Apache on VM 01"
+      apt:
+        name: "apache2"
+        state: "latest"
+    - name: "Change the index.html file on VM 01"
+      copy:
+        content: "This was made with Ansible, by CDB"
+        dest: "/var/www/html/index.html"
+    - name: "Restart Apache on VM 01"
+      service:
+        name: "apache2"
+        state: "restarted"
+        enabled: "yes"
